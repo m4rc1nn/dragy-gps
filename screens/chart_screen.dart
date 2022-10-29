@@ -1,11 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:fl_chart/fl_chart.dart';
 
-import '../models/distance.dart';
+import '../models/speed_measurement.dart';
 
 class ChartScreen extends StatelessWidget {
-  final Distance distance;
-  ChartScreen({required Key key, required this.distance}) : super(key: key);
+  final SpeedMeasurement speedMeasurement;
+  ChartScreen({required Key key, required this.speedMeasurement})
+      : super(key: key);
 
   @override
   Widget build(BuildContext context) {
@@ -26,7 +27,8 @@ class ChartScreen extends StatelessWidget {
               ChartContainer(
                 title: 'Przebieg przyśpieszenia',
                 color: Color.fromRGBO(45, 108, 223, 1),
-                chart: LineChartContent(key: UniqueKey(), distance: distance),
+                chart: LineChartContent(
+                    key: UniqueKey(), speedMeasurement: speedMeasurement),
               ),
             ],
           ),
@@ -80,29 +82,29 @@ class ChartContainer extends StatelessWidget {
 }
 
 class LineChartContent extends StatelessWidget {
-  final Distance distance;
+  final SpeedMeasurement speedMeasurement;
 
-  LineChartContent({required Key key, required this.distance})
+  LineChartContent({required Key key, required this.speedMeasurement})
       : super(key: key);
 
   @override
   Widget build(BuildContext context) {
-    debugPrint(distance.accelerationList.last.toString());
-    debugPrint(distance.accelerationList.length.toString());
+    debugPrint(speedMeasurement.accelerationList.last.toString());
+    debugPrint(speedMeasurement.accelerationList.length.toString());
     return LineChart(
       LineChartData(
           titlesData: FlTitlesData(
             bottomTitles: AxisTitles(),
             topTitles: AxisTitles(),
           ),
-          minY: distance.getStart().toDouble(),
-          maxY: distance.getEnd().toDouble(),
+          minY: speedMeasurement.getStart().toDouble(),
+          maxY: speedMeasurement.getEnd().toDouble(),
           lineBarsData: [
             LineChartBarData(
                 color: Colors.black,
                 isStepLineChart: true,
                 isCurved: true,
-                spots: distance.accelerationList
+                spots: speedMeasurement.accelerationList
                     .asMap()
                     .entries
                     .map((entry) => FlSpot(entry.key.toDouble(), entry.value))

@@ -1,4 +1,4 @@
-import 'package:dragy_gps/models/distance.dart';
+import 'package:dragy_gps/models/speed_measurement.dart';
 import 'package:flutter/material.dart';
 import '../widgets/bottom_navigation_bar.dart';
 

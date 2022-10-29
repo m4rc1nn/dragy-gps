@@ -1,16 +1,16 @@
 import 'package:flutter/material.dart';
-import '../models/distance.dart';
+import '../models/speed_measurement.dart';
 
 class CircularProgressBar extends StatefulWidget {
   final int radius;
   final double speed;
-  final Distance distance;
+  final SpeedMeasurement speedMeasurement;
 
   const CircularProgressBar(
       {required Key key,
       required this.radius,
       required this.speed,
-      required this.distance})
+      required this.speedMeasurement})
       : super(key: key);
 
   @override
@@ -20,7 +20,7 @@ class CircularProgressBar extends StatefulWidget {
 class _CircularProgressBarState extends State<CircularProgressBar> {
   late int radius;
   late double speed;
-  late Distance distance;
+  late SpeedMeasurement speedMeasurement;
 
   double _value = 0.0;
 
@@ -28,10 +28,11 @@ class _CircularProgressBarState extends State<CircularProgressBar> {
   void initState() {
     super.initState();
     setState(() {
-      _value = widget.distance.getStatus() == StatusType.WAITING
+      _value = widget.speedMeasurement.getStatus() == StatusType.WAITING
           ? 0.0
-          : (widget.speed - widget.distance.getStart()) /
-              (widget.distance.getEnd() - widget.distance.getStart());
+          : (widget.speed - widget.speedMeasurement.getStart()) /
+              (widget.speedMeasurement.getEnd() -
+                  widget.speedMeasurement.getStart());
     });
   }
 
@@ -44,8 +45,8 @@ class _CircularProgressBarState extends State<CircularProgressBar> {
           backgroundColor: Colors.black,
           strokeWidth: 7.5,
           value: _value,
-          valueColor:
-              AlwaysStoppedAnimation<Color?>(widget.distance.getColor()),
+          valueColor: AlwaysStoppedAnimation<Color?>(
+              widget.speedMeasurement.getColor()),
         ));
   }
 }

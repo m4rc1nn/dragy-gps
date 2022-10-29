@@ -16,17 +16,20 @@ class _LocationScreenState extends State<LocationScreen> {
 
     if (permission == LocationPermission.denied ||
         permission == LocationPermission.deniedForever) {
-      show
-          ? ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                backgroundColor: Colors.grey[900],
-                content: const Text(
-                    'Odrzucono nadanie uprawnień do lokalizacji.',
-                    style: TextStyle(color: Colors.red)),
-              ),
-            )
-          : '';
-      return;
+      permission = await Geolocator.requestPermission();
+      if (permission == LocationPermission.denied) {
+        show
+            ? ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  backgroundColor: Colors.grey[900],
+                  content: const Text(
+                      'Odrzucono nadanie uprawnień do lokalizacji.',
+                      style: TextStyle(color: Colors.red)),
+                ),
+              )
+            : '';
+        return;
+      }
     }
     Navigator.push(
       context,
@@ -37,7 +40,7 @@ class _LocationScreenState extends State<LocationScreen> {
 
   @override
   Widget build(BuildContext context) {
-    checkPermission(false);
+    //checkPermission(false);
     return Scaffold(
         appBar: AppBar(
           title: Text('Dragy GPS'),

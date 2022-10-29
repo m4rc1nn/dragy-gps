@@ -3,11 +3,10 @@ import 'package:dragy_gps/widgets/distance_card.dart';
 import 'package:flutter/material.dart';
 import 'dart:async';
 import '../widgets/circular_progress_bar.dart';
-import '../models/distance.dart';
-import '../screens/location_screen.dart';
-import 'package:geolocator/geolocator.dart';
-import 'package:sensors/sensors.dart';
-import 'dart:math';
+import '../models/speed_measurement.dart';
+import 'package:provider/provider.dart';
+import '../providers/speedometr_provider.dart';
+import '../utils/numeric_utils.dart';
 
 class DragyScreen extends StatefulWidget {
   const DragyScreen({super.key});
@@ -17,103 +16,12 @@ class DragyScreen extends StatefulWidget {
 }
 
 class _DragyScreenState extends State<DragyScreen> {
-  List<Distance> _distanceList = [];
-  double _lastSavedVelocity = 0.0;
-  double _velocity = 0.0;
-  Timer? _timer;
   String _valueMin = '';
   String _valueMax = '';
   TextEditingController _textFieldMin = TextEditingController();
   TextEditingController _textFieldMax = TextEditingController();
 
-  @override
-  void initState() {
-    userAccelerometerEvents.listen((UserAccelerometerEvent event) {
-      _onAccelerate(event);
-    });
-    Timer.periodic(Duration(milliseconds: 100), (Timer t) {
-      setState(() {
-        _distanceList = [..._distanceList];
-      });
-    });
-    initExampleRides();
-    super.initState();
-  }
-
-  void _onAccelerate(UserAccelerometerEvent event) {
-    double newVelocity =
-        sqrt(event.x * event.x + event.y * event.y + event.z * event.z);
-
-    if ((newVelocity - _velocity).abs() < 1) {
-      return;
-    }
-    debugPrint('---');
-    debugPrint(_velocity.toString() + ' < 0 | 0 >= ' + newVelocity.toString());
-
-    List<Distance> distanceList = List.from(_distanceList);
-    distanceList.forEach((distance) {
-      if ((newVelocity > distance.getStart()) &&
-          (_velocity <= distance.getStart()) &&
-          distance.getStatus() == StatusType.WAITING) {
-        distance.setStartTime();
-      }
-      if ((newVelocity >= distance.getEnd()) &&
-          (distance.getStatus() == StatusType.IN_PROGRESS)) {
-        distance.setEndTime();
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            backgroundColor: Colors.grey[900],
-            content: const Text('Zakończono pomiar.',
-                style: TextStyle(color: Colors.white)),
-          ),
-        );
-      }
-      if (distance.getStatus() == StatusType.IN_PROGRESS) {
-        //double meterDistance = (((actuallSpeed + _speed) / 2) * 1000) / 3600;
-        //distance.addDistance(meterDistance / 10);
-        distance.addToChart(newVelocity);
-      }
-    });
-
-    setState(() {
-      _distanceList = distanceList;
-    });
-
-    setState(() {
-      if (newVelocity < 1)
-        _velocity = 0.0;
-      else
-        _velocity = newVelocity;
-    });
-  }
-
-  /*double getActuallSpeed() {
-    Geolocator.getCurrentPosition(
-            forceAndroidLocationManager: true,
-            desiredAccuracy: LocationAccuracy.best)
-        .then((position) => setState(() {
-              _currentSpeed = position.speed;
-              debugPrint(position.speedAccuracy.toString());
-            }));
-    return _currentSpeed;
-  }*/
-
-  void removeDistance(int id) {
-    setState(() {
-      _distanceList.remove(_distanceList[id]);
-    });
-  }
-
-  bool isNumeric(String s) {
-    try {
-      int.parse(s);
-      return true;
-    } catch (e) {
-      return false;
-    }
-  }
-
-  void addDistance() {
+  void addSpeedMeasurement() {
     if (!isNumeric(_valueMin) || !isNumeric(_valueMax)) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -137,12 +45,9 @@ class _DragyScreenState extends State<DragyScreen> {
       );
       return;
     }
-    Distance distance = Distance();
-    distance.setStart(min);
-    distance.setEnd(max);
-    setState(() {
-      _distanceList.add(distance);
-    });
+    SpeedMeasurement speedMeasurement = SpeedMeasurement();
+    speedMeasurement.setStart(min);
+    speedMeasurement.setEnd(max);
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         backgroundColor: Colors.grey[900],
@@ -151,13 +56,8 @@ class _DragyScreenState extends State<DragyScreen> {
             style: TextStyle(color: Colors.green)),
       ),
     );
-  }
 
-  void initExampleRides() {
-    Distance distance = Distance();
-    distance.setStart(0);
-    distance.setEnd(100);
-    _distanceList.add(distance);
+    context.read<SpeedometerProvider>().addSpeedMeasurement(speedMeasurement);
   }
 
   Future<void> _displayTextInputDialog(BuildContext context) async {
@@ -192,7 +92,7 @@ class _DragyScreenState extends State<DragyScreen> {
                       mainAxisAlignment: MainAxisAlignment.end,
                       children: <Widget>[Icon(Icons.add), Text('Dodaj')]),
                   onPressed: () {
-                    addDistance();
+                    addSpeedMeasurement();
                     Navigator.of(context, rootNavigator: true).pop('dialog');
                   })
             ],
@@ -202,6 +102,8 @@ class _DragyScreenState extends State<DragyScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final providerData = Provider.of<SpeedometerProvider>(context);
+    providerData.getSpeedUpdates();
     return Scaffold(
       resizeToAvoidBottomInset: false,
       body: SingleChildScrollView(
@@ -215,7 +117,7 @@ class _DragyScreenState extends State<DragyScreen> {
                 children: <Widget>[
                   Column(
                     children: [
-                      Text(_velocity.toInt().toString(),
+                      Text(providerData.velocity.toStringAsFixed(0),
                           style: const TextStyle(
                               fontSize: 42, fontWeight: FontWeight.bold)),
                       Text('km/h',
@@ -224,13 +126,20 @@ class _DragyScreenState extends State<DragyScreen> {
                     ],
                   )
                 ]..addAll(
-                    _distanceList.map((distance) {
+                    context
+                        .watch<SpeedometerProvider>()
+                        .speedMeasurementList
+                        .map((speedMeasurement) {
                       return CircularProgressBar(
                           key: UniqueKey(),
-                          radius:
-                              (150 + (10 * _distanceList.indexOf(distance))),
-                          speed: _velocity,
-                          distance: distance);
+                          radius: (150 +
+                              (10 *
+                                  context
+                                      .watch<SpeedometerProvider>()
+                                      .speedMeasurementList
+                                      .indexOf(speedMeasurement))),
+                          speed: context.watch<SpeedometerProvider>().velocity,
+                          speedMeasurement: speedMeasurement);
                     }).toList(),
                   ),
               )),
@@ -248,15 +157,24 @@ class _DragyScreenState extends State<DragyScreen> {
                 label: const Text('Dodaj nowy'), // <-- Text
               )),
           Column(
-            children: <Widget>[]..addAll(_distanceList.map((distance) {
+            children: <Widget>[]..addAll(context
+                  .watch<SpeedometerProvider>()
+                  .speedMeasurementList
+                  .map((speedMeasurement) {
                 return Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 15),
                     child: DistanceCard(
                         key: UniqueKey(),
-                        id: _distanceList.indexOf(distance),
-                        remove: (id) => {removeDistance(id)},
-                        distance:
-                            _distanceList[_distanceList.indexOf(distance)]));
+                        id: context
+                            .watch<SpeedometerProvider>()
+                            .speedMeasurementList
+                            .indexOf(speedMeasurement),
+                        remove: (speedMeasurement) => {
+                              context
+                                  .read<SpeedometerProvider>()
+                                  .removeSpeedMeasurement(speedMeasurement)
+                            },
+                        speedMeasurement: speedMeasurement));
               }).toList()),
           ),
         ],
